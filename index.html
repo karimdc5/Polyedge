@@ -56,6 +56,10 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
   background:rgba(3,9,18,.97);
   display:flex;align-items:center;justify-content:center;
   padding:20px;
+  -webkit-overflow-scrolling:touch;
+}
+#onboarding .ob-card{
+  position:relative;z-index:10001;
 }
 .ob-card{
   max-width:480px;width:100%;
@@ -708,7 +712,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
 </div><!-- /app -->
 
 <!-- ── SIMULATOR DRAWER ── -->
-<div id="sim-overlay" onclick="e=>e.target===this&&closeSim()">
+<div id="sim-overlay" onclick="if(event.target===this)closeSim()">
   <div id="sim-drawer">
     <div class="sim-handle"></div>
     <div class="sim-title">Bet Simulator</div>
@@ -1251,8 +1255,7 @@ function obNext(){
 }
 function closeOnboarding(){
   const ob=document.getElementById('onboarding');
-  ob.style.opacity='0';ob.style.transition='opacity .3s';
-  setTimeout(()=>ob.style.display='none',300);
+  ob.style.display='none';
   localStorage.setItem('pe_ob','1');
 }
 
@@ -1263,7 +1266,7 @@ function showToast(msg){
 }
 
 // BOOT
-if(localStorage.getItem('pe_ob')){closeOnboarding()}
+if(localStorage.getItem('pe_ob')){document.getElementById('onboarding').style.display='none';}
 fetchMarkets();
 window.addEventListener('resize',()=>{if(document.getElementById('view-radar').classList.contains('active'))drawRadar()});
 </script>
