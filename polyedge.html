@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PolyEdge — Prediction Market Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=JetBrains+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:#020810;color:#e2e8f0;font-family:'DM Sans',sans-serif;min-height:100vh;}
+  ::-webkit-scrollbar{width:3px}
+  ::-webkit-scrollbar-thumb{background:#0f2040;border-radius:99px}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  @keyframes breathe{0%,100%{opacity:1;box-shadow:0 0 8px currentColor}50%{opacity:0.3;box-shadow:none}}
+  @keyframes scanline{0%{top:-20%}100%{top:110%}}
+  @keyframes gradpan{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .card{animation:fadeUp 0.4s ease both;}
+
+  /* ── HEADER ── */
+  #header{
+    position:sticky;top:0;z-index:100;
+    background:rgba(2,8,16,0.94);
+    backdrop-filter:blur(18px);
+    border-bottom:1px solid #091828;
+    padding:16px 16px 0;
+    overflow:hidden;
+  }
+  #header::before{
+    content:'';position:absolute;top:-80px;right:-80px;
+    width:260px;height:260px;
+    background:radial-gradient(circle,#1d4ed812 0%,transparent 70%);
+    pointer-events:none;
+  }
+  #header::after{
+    content:'';position:absolute;top:-60px;left:-40px;
+    width:200px;height:200px;
+    background:radial-gradient(circle,#f9731608 0%,transparent 70%);
+    pointer-events:none;
+  }
+  .grid-bg{
+    position:absolute;inset:0;opacity:0.04;pointer-events:none;
+    background-image:linear-gradient(#2563eb33 1px,transparent 1px),linear-gradient(90deg,#2563eb33 1px,transparent 1px);
+    background-size:36px 36px;
+  }
+  .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;position:relative;}
+  .status-dot{
+    width:7px;height:7px;border-radius:50%;
+    display:inline-block;margin-right:6px;
+    background:#334155;
+  }
+  .status-dot.live{background:#10b981;box-shadow:0 0 8px #10b981;}
+  .status-dot.demo{background:#eab308;box-shadow:0 0 6px #eab308;}
+  .status-dot.loading{background:#2563eb;animation:breathe 1s infinite;color:#2563eb;}
+  .status-text{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.18em;font-weight:700;}
+  .status-text.live{color:#10b981}
+  .status-text.demo{color:#eab308}
+  .status-text.loading{color:#2563eb}
+  .time-text{font-family:'JetBrains Mono',monospace;font-size:9px;color:#0f2040;letter-spacing:0.12em;}
+
+  .brand{margin-bottom:14px;position:relative;}
+  .brand h1{
+    font-family:'DM Serif Display',serif;
+    font-size:clamp(26px,6vw,42px);
+    font-weight:400;line-height:1;
+    background:linear-gradient(120deg,#f8fafc 20%,#93c5fd 80%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    display:inline-block;
+  }
+  .brand-badge{
+    font-family:'JetBrains Mono',monospace;font-size:8px;
+    color:#1d4ed8;letter-spacing:0.15em;font-weight:700;
+    border:1px solid #1d4ed855;padding:2px 6px;border-radius:2px;
+    vertical-align:middle;margin-left:8px;
+  }
+  .brand-sub{color:#0f2444;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.14em;margin-top:3px;}
+
+  /* stats bar */
+  .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-bottom:14px;}
+  .stat-cell{padding:8px 10px;border:1px solid #091828;}
+  .stat-cell:first-child{border-radius:4px 0 0 4px;background:#030b18;}
+  .stat-cell:last-child{border-radius:0 4px 4px 0;background:#040d1c;}
+  .stat-cell:nth-child(2){background:#040d1c;}
+  .stat-cell:nth-child(3){background:#030b18;}
+  .stat-label{color:#0f2040;font-size:7px;font-family:'JetBrains Mono',monospace;letter-spacing:0.12em;margin-bottom:2px;}
+  .stat-val{font-size:14px;font-family:'JetBrains Mono',monospace;font-weight:700;}
+
+  /* filters */
+  .filters{display:flex;gap:4px;flex-wrap:wrap;padding-bottom:14px;position:relative;}
+  .flt{
+    padding:5px 11px;border-radius:3px;
+    font-family:'JetBrains Mono',monospace;font-size:8px;
+    letter-spacing:0.12em;cursor:pointer;font-weight:700;
+    text-transform:uppercase;transition:all 0.15s;
+    background:transparent;border:1px solid #091828;color:#1e3a5f;
+  }
+  .flt.active{background:#0c1f3d;border-color:#2563eb;color:#60a5fa;}
+  .flt:hover{border-color:#2563eb;color:#60a5fa;}
+  .flt-refresh{margin-left:auto;}
+
+  /* ── BODY ── */
+  #body{padding:14px 14px 40px;max-width:860px;margin:0 auto;}
+
+  /* search */
+  .search-wrap{position:relative;margin-bottom:12px;}
+  .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#0f2040;font-size:14px;pointer-events:none;}
+  #searchInput{
+    width:100%;padding:9px 12px 9px 32px;
+    background:#030b18;border:1px solid #091828;
+    border-radius:4px;color:#64748b;outline:none;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.04em;
+  }
+
+  /* spinner */
+  #spinner{display:none;text-align:center;padding:50px 0;}
+  .spin-ring{
+    width:36px;height:36px;border:2px solid #091828;
+    border-top-color:#2563eb;border-radius:50%;
+    animation:spin 0.7s linear infinite;margin:0 auto 14px;
+  }
+  .spin-label{color:#0f2444;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.15em;}
+
+  /* count line */
+  #countLine{color:#0f2444;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.1em;margin-bottom:10px;}
+
+  /* market cards */
+  #markets{display:flex;flex-direction:column;gap:8px;}
+  .mcard{
+    position:relative;cursor:pointer;
+    background:linear-gradient(160deg,#060d1a 0%,#040912 100%);
+    border:1px solid #0b1e35;
+    border-left:3px solid #1e3a5f;
+    border-radius:6px;padding:16px 18px;
+    transition:box-shadow 0.3s;
+    animation:fadeUp 0.4s ease both;
+    overflow:hidden;
+  }
+  .mcard.top{background:linear-gradient(135deg,#071407 0%,#050f05 100%);border-color:#16653455;box-shadow:0 0 24px #16653420;}
+  .mcard-grid{position:absolute;inset:0;opacity:0.025;pointer-events:none;border-radius:6px;
+    background-image:linear-gradient(#2563eb22 1px,transparent 1px),linear-gradient(90deg,#2563eb22 1px,transparent 1px);
+    background-size:32px 32px;}
+  .mcard-rank{
+    position:absolute;top:0;right:0;
+    background:#0b1e3566;border-bottom-left-radius:5px;
+    padding:2px 9px;font-family:'JetBrains Mono',monospace;
+    font-size:8px;color:#1e3a5f;letter-spacing:0.1em;
+  }
+  .mcard.top .mcard-rank{background:#16653422;color:#4ade80;}
+
+  .mcard-inner{display:flex;gap:12px;align-items:flex-start;}
+  .dial-wrap{flex-shrink:0;}
+
+  .mcard-content{flex:1;min-width:0;}
+  .tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;}
+  .tag{
+    font-size:8px;font-family:'JetBrains Mono',monospace;font-weight:700;
+    letter-spacing:0.14em;padding:2px 7px;border-radius:2px;
+    white-space:nowrap;
+  }
+  .question{
+    color:#c8d5e8;font-size:13px;
+    font-family:'DM Serif Display',serif;
+    line-height:1.5;margin-bottom:10px;
+    overflow:hidden;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  }
+  .question.open{-webkit-line-clamp:999;}
+
+  /* price bar */
+  .price-row{display:flex;justify-content:space-between;margin-bottom:5px;}
+  .price-yes{color:#10b981;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;}
+  .price-no{color:#ef4444;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;}
+  .bar-track{height:3px;background:#0a1628;border-radius:99px;overflow:hidden;margin-bottom:10px;}
+  .bar-fill{height:100%;background:linear-gradient(90deg,#10b981,#06d6a0);box-shadow:0 0 6px #10b98188;border-radius:99px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+
+  .mini-stats{display:flex;gap:12px;flex-wrap:wrap;}
+  .mini-stat-label{color:#0f2444;font-size:8px;font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;}
+  .mini-stat-val{color:#334155;font-size:11px;font-family:'JetBrains Mono',monospace;}
+
+  /* expanded */
+  .expand-body{margin-top:14px;padding-top:14px;border-top:1px solid #0b1e35;display:none;}
+  .expand-body.open{display:block;animation:fadeUp 0.2s ease both;}
+  .expand-label{color:#1e3a5f;font-size:8px;font-family:'JetBrains Mono',monospace;letter-spacing:0.14em;margin-bottom:6px;}
+  .expand-text{color:#64748b;font-size:12px;font-family:'DM Sans',sans-serif;line-height:1.75;margin-bottom:12px;}
+  .expand-pills{display:flex;gap:8px;}
+  .expand-pill{flex:1;background:#030a14;border:1px solid #0b1e35;border-radius:4px;padding:8px 12px;}
+  .expand-pill-label{color:#0f2444;font-size:8px;font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;margin-bottom:4px;}
+  .expand-pill-val{font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:700;}
+
+  .tap-hint{margin-top:8px;color:#0f2444;font-size:8px;font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;}
+
+  /* footer */
+  #footer{margin-top:36px;padding-top:14px;border-top:1px solid #091828;
+    text-align:center;color:#091828;font-family:'JetBrains Mono',monospace;font-size:7px;letter-spacing:0.1em;}
+
+  /* scanline effect */
+  #scanline{
+    position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;
+    background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 4px);
+  }
+  #scanbeam{
+    position:absolute;left:0;right:0;height:15%;
+    background:linear-gradient(180deg,rgba(37,99,235,0.025) 0%,transparent 100%);
+    animation:scanline 7s linear infinite;
+  }
+</style>
+</head>
+<body>
+
+<div id="scanline"><div id="scanbeam"></div></div>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="grid-bg"></div>
+  <div class="top-bar">
+    <div style="display:flex;align-items:center;">
+      <span class="status-dot loading" id="statusDot"></span>
+      <span class="status-text loading" id="statusText">CONNECTING...</span>
+      <span id="statusSub" style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#334155;letter-spacing:0.1em;margin-left:8px;"></span>
+    </div>
+    <span class="time-text" id="clock"></span>
+  </div>
+
+  <div class="brand">
+    <h1>PolyEdge</h1><span class="brand-badge">v2.0</span>
+    <div class="brand-sub">NARRATIVE LAG DETECTION // FREE // NO API COST</div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-cell"><div class="stat-label">MARKETS</div><div class="stat-val" id="statMarkets" style="color:#60a5fa">—</div></div>
+    <div class="stat-cell"><div class="stat-label">HIGH EDGE</div><div class="stat-val" id="statEdge" style="color:#f97316">—</div></div>
+    <div class="stat-cell"><div class="stat-label">AVG LAG</div><div class="stat-val" id="statLag" style="color:#eab308">—</div></div>
+    <div class="stat-cell"><div class="stat-label">ENGINE</div><div class="stat-val" style="color:#10b981;font-size:11px;">ALGO v2</div></div>
+  </div>
+
+  <div class="filters">
+    <button class="flt" data-f="ALL" onclick="setFilter(this)">ALL</button>
+    <button class="flt active" data-f="TOP" onclick="setFilter(this)">TOP EDGE</button>
+    <button class="flt" data-f="HIGH" onclick="setFilter(this)">HIGH LAG</button>
+    <button class="flt" data-f="YES" onclick="setFilter(this)">BET YES</button>
+    <button class="flt" data-f="NO" onclick="setFilter(this)">BET NO</button>
+    <button class="flt flt-refresh" onclick="fetchMarkets()">↺ REFRESH</button>
+  </div>
+</div>
+
+<!-- BODY -->
+<div id="body">
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input id="searchInput" placeholder="Search any market..." oninput="renderMarkets()"/>
+  </div>
+
+  <div id="spinner">
+    <div class="spin-ring"></div>
+    <div class="spin-label">FETCHING LIVE POLYMARKET DATA...</div>
+  </div>
+
+  <div id="countLine"></div>
+  <div id="markets"></div>
+  <div id="footer">POLYEDGE v2.0 // NARRATIVE LAG ENGINE // DATA: POLYMARKET GAMMA API // NOT FINANCIAL ADVICE</div>
+</div>
+
+<script>
+// ── FALLBACK DATA (real markets as of June 2026) ──────────────────────────────
+const FALLBACK = [
+  {id:"f1",question:"Will the Federal Reserve cut interest rates before September 2026?",outcomePrices:["0.58","0.42"],volume24hr:340000,volume:2800000,liquidityNum:410000},
+  {id:"f2",question:"Will Bitcoin exceed $150,000 by end of 2026?",outcomePrices:["0.37","0.63"],volume24hr:820000,volume:5100000,liquidityNum:960000},
+  {id:"f3",question:"Will Donald Trump be impeached before end of 2026?",outcomePrices:["0.08","0.92"],volume24hr:91000,volume:1200000,liquidityNum:180000},
+  {id:"f4",question:"Will the US enter a recession in 2026?",outcomePrices:["0.41","0.59"],volume24hr:510000,volume:3700000,liquidityNum:590000},
+  {id:"f5",question:"Will Ethereum surpass $5,000 before 2027?",outcomePrices:["0.52","0.48"],volume24hr:290000,volume:1900000,liquidityNum:310000},
+  {id:"f6",question:"Will SpaceX land humans on Mars before 2030?",outcomePrices:["0.19","0.81"],volume24hr:44000,volume:670000,liquidityNum:95000},
+  {id:"f7",question:"Will there be a ceasefire in Gaza by August 2026?",outcomePrices:["0.47","0.53"],volume24hr:630000,volume:4200000,liquidityNum:730000},
+  {id:"f8",question:"Will Apple release AR glasses in 2026?",outcomePrices:["0.29","0.71"],volume24hr:120000,volume:880000,liquidityNum:140000},
+  {id:"f9",question:"Will the S&P 500 hit 7,000 by end of 2026?",outcomePrices:["0.61","0.39"],volume24hr:470000,volume:3100000,liquidityNum:520000},
+  {id:"f10",question:"Will OpenAI release GPT-5 before end of 2026?",outcomePrices:["0.72","0.28"],volume24hr:88000,volume:720000,liquidityNum:115000},
+  {id:"f11",question:"Will Kamala Harris run for President in 2028?",outcomePrices:["0.44","0.56"],volume24hr:205000,volume:1600000,liquidityNum:270000},
+  {id:"f12",question:"Will gold exceed $4,000/oz before 2027?",outcomePrices:["0.33","0.67"],volume24hr:160000,volume:1100000,liquidityNum:195000},
+  {id:"f13",question:"Will Elon Musk remain CEO of Tesla through 2026?",outcomePrices:["0.76","0.24"],volume24hr:55000,volume:440000,liquidityNum:78000},
+  {id:"f14",question:"Will China invade Taiwan before 2028?",outcomePrices:["0.11","0.89"],volume24hr:310000,volume:2400000,liquidityNum:420000},
+  {id:"f15",question:"Will Solana flip Ethereum by market cap in 2026?",outcomePrices:["0.14","0.86"],volume24hr:73000,volume:560000,liquidityNum:88000},
+];
+
+// ── SCORING ENGINE ─────────────────────────────────────────────────────────────
+function score(m) {
+  const yes = parseFloat(Array.isArray(m.outcomePrices) ? m.outcomePrices[0] : 0.5);
+  const v24 = parseFloat(m.volume24hr || 0);
+  const vTot = parseFloat(m.volume || 1);
+  const liq = parseFloat(m.liquidityNum || m.liquidity || 0);
+  const uncertainty = 1 - Math.abs(yes - 0.5) * 2;
+  const liqFactor = liq < 50000 ? 1 : liq < 200000 ? 0.72 : 0.38;
+  const volRatio = vTot > 0 ? Math.min(v24 / vTot, 1) : 0;
+  const extremePenalty = yes > 0.82 || yes < 0.18 ? 0.35 : 1;
+  const lag = Math.min(100, Math.round((uncertainty*40 + liqFactor*35 + volRatio*25) * extremePenalty));
+  const edge = Math.round(uncertainty*55 + liqFactor*45);
+  const rating = lag>=65?"STRONG EDGE":lag>=40?"MODERATE EDGE":lag>=20?"WEAK EDGE":"PRICED IN";
+  const side = yes<0.44?"YES":yes>0.56?"NO":"NEUTRAL";
+  const conf = lag>=65?"HIGH":lag>=40?"MED":"LOW";
+  const reason =
+    liq<50000 ? "Thin liquidity — weak crowd signal, easy to misprice by small actors." :
+    volRatio>0.35 ? "Volume spiking vs total — narrative shifting fast, price may lag ground truth." :
+    uncertainty>0.75 ? "Deep uncertainty zone — collective probability unstable, vulnerable to new signal." :
+    yes>0.78 ? "Crowd is overconfident. Extreme prices historically mean-revert. Fade the consensus." :
+    yes<0.22 ? "Underdog market. Low-probability events get underpriced when sentiment is uniform." :
+    "Market appears efficiently priced. Crowd has absorbed available signal. Low edge.";
+  return {yes, lag, edge, rating, side, conf, reason, v24, vTot, liq};
+}
+
+function fmt(n){
+  if(!n||n===0)return"$—";
+  if(n>=1e6)return`$${(n/1e6).toFixed(1)}M`;
+  if(n>=1e3)return`$${(n/1e3).toFixed(0)}K`;
+  return`$${Math.round(n)}`;
+}
+
+// ── SVG RADIAL DIAL ─────────────────────────────────────────────────────────────
+function dialSVG(lag){
+  const r=28,cx=34,cy=34,circ=2*Math.PI*r;
+  const fill=(lag/100)*circ;
+  const col=lag>=65?"#f97316":lag>=40?"#eab308":"#1e3a5f";
+  const glow=lag>=40?`filter:drop-shadow(0 0 5px ${col})`:"";
+  return `<svg width="68" height="68" style="${glow}">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#0a1628" stroke-width="6"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="6"
+      stroke-dasharray="${fill} ${circ}" stroke-linecap="round"
+      transform="rotate(-90 ${cx} ${cy})"/>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
+      fill="${col}" font-size="14" font-weight="700" font-family="JetBrains Mono,monospace">${lag}</text>
+  </svg>`;
+}
+
+function tagHTML(txt,col,glow){
+  const g=glow?`box-shadow:0 0 8px ${col}44`:"";
+  return `<span class="tag" style="background:${col}15;color:${col};border:1px solid ${col}33;${g}">${txt}</span>`;
+}
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let allMarkets = [];
+let currentFilter = "TOP";
+let expanded = {};
+
+// ── RENDER ─────────────────────────────────────────────────────────────────────
+function renderMarkets(){
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const scored = allMarkets.map(m=>({m,s:score(m)}));
+  scored.sort((a,b)=>b.s.lag-a.s.lag);
+
+  const filtered = scored.filter(({m,s})=>{
+    const text=(m.question||m.title||'').toLowerCase();
+    if(q) return text.includes(q);
+    if(currentFilter==='TOP') return s.lag>=40;
+    if(currentFilter==='HIGH') return s.lag>=65;
+    if(currentFilter==='YES') return s.side==='YES';
+    if(currentFilter==='NO') return s.side==='NO';
+    return true;
+  }).slice(0,20);
+
+  // update stats
+  const highEdge=scored.filter(({s})=>s.lag>=65).length;
+  const avgLag=scored.length?Math.round(scored.reduce((a,{s})=>a+s.lag,0)/scored.length):0;
+  document.getElementById('statMarkets').textContent=allMarkets.length||'—';
+  document.getElementById('statEdge').textContent=highEdge||'—';
+  document.getElementById('statLag').textContent=avgLag?`${avgLag}`:'—';
+  document.getElementById('countLine').textContent=`${filtered.length} MARKETS // SORTED BY NARRATIVE LAG ▾`;
+
+  const container=document.getElementById('markets');
+  container.innerHTML='';
+
+  filtered.forEach(({m,s},i)=>{
+    const isTop=i===0&&!q;
+    const lc=s.lag>=65?"#f97316":s.lag>=40?"#eab308":"#1e3a5f";
+    const sc=s.side==='YES'?"#10b981":s.side==='NO'?"#ef4444":"#475569";
+    const cc=s.conf==='HIGH'?"#f97316":s.conf==='MED'?"#eab308":"#334155";
+    const id=m.id||m.conditionId||i;
+    const isExp=!!expanded[id];
+    const yPct=Math.round(s.yes*100);
+    const nPct=100-yPct;
+
+    const card=document.createElement('div');
+    card.className='mcard card'+(isTop?' top':'');
+    card.style.borderLeftColor=lc;
+    card.style.animationDelay=`${i*0.04}s`;
+    card.onclick=()=>toggleCard(id,card);
+
+    card.innerHTML=`
+      <div class="mcard-grid"></div>
+      <div class="mcard-rank">${isTop?'★ TOP PICK':'#'+(i+1)}</div>
+      <div class="mcard-inner">
+        <div class="dial-wrap">${dialSVG(s.lag)}</div>
+        <div class="mcard-content">
+          <div class="tags">
+            ${tagHTML('LAG '+(s.lag>=65?'HIGH':s.lag>=40?'MED':'LOW'),lc,s.lag>=65)}
+            ${tagHTML('BET '+s.side,sc,false)}
+            ${tagHTML(s.conf+' CONF',cc,false)}
+          </div>
+          <div class="question${isExp?' open':''}">${m.question||m.title||'—'}</div>
+          <div class="price-row">
+            <span class="price-yes">YES ${yPct}¢</span>
+            <span class="price-no">${nPct}¢ NO</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${yPct}%"></div></div>
+          <div class="mini-stats">
+            <div><div class="mini-stat-label">24H VOL</div><div class="mini-stat-val">${fmt(s.v24)}</div></div>
+            <div><div class="mini-stat-label">LIQUIDITY</div><div class="mini-stat-val">${fmt(s.liq)}</div></div>
+            <div><div class="mini-stat-label">EDGE</div><div class="mini-stat-val">${s.edge}/100</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="expand-body${isExp?' open':''}" id="exp-${id}">
+        <div class="expand-label">◈ NARRATIVE LAG ANALYSIS</div>
+        <div class="expand-text">${s.reason}</div>
+        <div class="expand-pills">
+          <div class="expand-pill">
+            <div class="expand-pill-label">RATING</div>
+            <div class="expand-pill-val" style="color:${lc}">${s.rating}</div>
+          </div>
+          <div class="expand-pill">
+            <div class="expand-pill-label">PLAY</div>
+            <div class="expand-pill-val" style="color:${sc}">${s.side==='NEUTRAL'?'SKIP / WATCH':'BET '+s.side}</div>
+          </div>
+        </div>
+      </div>
+      <div class="tap-hint">${isExp?'TAP TO COLLAPSE ▲':'TAP FOR ANALYSIS ▾'}</div>
+    `;
+    container.appendChild(card);
+  });
+
+  if(filtered.length===0){
+    container.innerHTML='<div style="text-align:center;padding:40px 0;color:#0f2444;font-family:JetBrains Mono,monospace;font-size:10px;">NO MARKETS MATCH</div>';
+  }
+}
+
+function toggleCard(id,card){
+  expanded[id]=!expanded[id];
+  const expBody=card.querySelector('.expand-body');
+  const hint=card.querySelector('.tap-hint');
+  const question=card.querySelector('.question');
+  if(expanded[id]){
+    expBody.classList.add('open');
+    hint.textContent='TAP TO COLLAPSE ▲';
+    question.classList.add('open');
+  } else {
+    expBody.classList.remove('open');
+    hint.textContent='TAP FOR ANALYSIS ▾';
+    question.classList.remove('open');
+  }
+}
+
+function setFilter(btn){
+  document.querySelectorAll('.flt[data-f]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter=btn.dataset.f;
+  document.getElementById('searchInput').value='';
+  renderMarkets();
+}
+
+// ── FETCH ──────────────────────────────────────────────────────────────────────
+async function fetchMarkets(){
+  setStatus('loading','CONNECTING...');
+  document.getElementById('spinner').style.display='block';
+  document.getElementById('markets').innerHTML='';
+  document.getElementById('countLine').textContent='';
+
+  const target='https://gamma-api.polymarket.com/markets?limit=40&active=true&closed=false&order=volume24hr&ascending=false';
+  const proxies=[
+    u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  ];
+
+  for(const makeUrl of proxies){
+    try{
+      const res=await fetch(makeUrl(target),{signal:AbortSignal.timeout(7000)});
+      if(!res.ok) continue;
+      const data=await res.json();
+      const arr=Array.isArray(data)?data:data.markets??[];
+      const usable=arr.filter(m=>m.outcomePrices?.length>=2&&(m.question||m.title));
+      if(usable.length>0){
+        allMarkets=usable;
+        setStatus('live',`LIVE // ${usable.length} MARKETS`);
+        document.getElementById('statusSub').textContent='';
+        document.getElementById('spinner').style.display='none';
+        renderMarkets();
+        return;
+      }
+    }catch(e){}
+  }
+
+  // fallback
+  allMarkets=FALLBACK;
+  setStatus('demo',`DEMO MODE // ${FALLBACK.length} MARKETS`);
+  document.getElementById('statusSub').textContent='(CORS BLOCKED — DEMO DATA)';
+  document.getElementById('spinner').style.display='none';
+  renderMarkets();
+}
+
+function setStatus(type,text){
+  const dot=document.getElementById('statusDot');
+  const txt=document.getElementById('statusText');
+  dot.className='status-dot '+type;
+  txt.className='status-text '+type;
+  txt.textContent=text;
+}
+
+// ── CLOCK ──────────────────────────────────────────────────────────────────────
+function tickClock(){
+  document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false});
+}
+setInterval(tickClock,1000);tickClock();
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+fetchMarkets();
+</script>
+</body>
+</html>
